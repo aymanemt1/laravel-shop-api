@@ -33,6 +33,12 @@ class OrderController extends Controller
 
     public function checkout(CheckoutRequest $request): JsonResponse
     {
+        // Optional Stripe payment: verify the intent succeeded first
+        $paymentIntentId = null;
+        if ($request->filled('payment_intent_id')) {
+            $paymentIntentId = PaymentController::verifySucceeded($request->input('payment_intent_id'));
+        }
+
         $cartItems = $request->user()->cartItems()->with('product')->get();
 
         abort_if($cartItems->isEmpty(), 422, 'Your cart is empty.');
@@ -42,7 +48,7 @@ class OrderController extends Controller
             abort_if($item->product->stock < $item->quantity, 422, "Not enough stock for {$item->product->name}.");
         }
 
-        $order = DB::transaction(function () use ($request, $cartItems) {
+        $order = DB::transaction(function () use ($request, $cartItems, $paymentIntentId) {
             $subtotal = $cartItems->sum(fn (CartItem $item) => $item->line_total);
             $shipping = $subtotal >= 500 ? 0 : 30;
 
@@ -51,7 +57,8 @@ class OrderController extends Controller
                 'subtotal' => $subtotal,
                 'shipping' => $shipping,
                 'total' => $subtotal + $shipping,
-                'status' => 'pending',
+                'status' => $paymentIntentId ? 'paid' : 'pending',
+                'stripe_payment_intent_id' => $paymentIntentId,
                 ...$request->validated(),
             ]);
 

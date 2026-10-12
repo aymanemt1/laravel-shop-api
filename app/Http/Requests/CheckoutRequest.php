@@ -18,6 +18,7 @@ class CheckoutRequest extends FormRequest
             'shipping_phone' => ['required', 'string', 'max:30'],
             'shipping_address' => ['required', 'string', 'max:500'],
             'shipping_city' => ['required', 'string', 'max:100'],
+            'payment_intent_id' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

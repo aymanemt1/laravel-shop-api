@@ -9,8 +9,10 @@ A complete **RESTful e-commerce API** built with Laravel 12 — authentication, 
 - 🗂️ **Categories** — with product counts
 - 🛒 **Cart** — add/update/remove items, live subtotal
 - 📋 **Orders** — atomic checkout (DB transaction), stock decrement, status workflow
+- ❤️ **Wishlist** — toggle, list and remove saved products
+- 💳 **Stripe payments** — PaymentIntent flow; card orders marked `paid` after verification, COD stays `pending`
 - 👮 **Admin role** — product/category management, order status updates
-- ✅ **Tested** — 18 feature tests covering auth, catalog, cart, checkout and permissions
+- ✅ **Tested** — 25 feature tests covering auth, catalog, cart, wishlist, Stripe and permissions
 
 ## 🛠️ Stack
 
@@ -68,9 +70,13 @@ Base URL: `http://localhost:8000/api`
 | POST     | `/cart`                | Add/update item `{product_id, quantity}` |
 | DELETE   | `/cart/{product}`      | Remove item                          |
 | DELETE   | `/cart`                | Clear cart                           |
-| POST     | `/checkout`            | Create order from cart (transaction) |
+| POST     | `/checkout`            | Create order from cart (transaction). Optional `payment_intent_id` for Stripe |
+| POST     | `/checkout/payment-intent` | Create Stripe PaymentIntent for cart total |
 | GET      | `/orders`              | Order history                        |
 | GET      | `/orders/{order}`      | Order details                        |
+| GET      | `/wishlist`            | Saved products                       |
+| POST     | `/wishlist`            | Toggle wishlist `{product_id}`       |
+| DELETE   | `/wishlist/{product}`  | Remove from wishlist                 |
 
 ### Admin only
 
@@ -91,7 +97,15 @@ Auth header: `Authorization: Bearer <token>`
 php artisan test
 ```
 
-18 feature tests — auth flows, catalog filters, cart math, atomic checkout, stock handling, admin/customer authorization boundaries.
+25 feature tests — auth flows, catalog filters, cart math, atomic checkout, stock handling, wishlist, Stripe verification paths, admin/customer authorization boundaries.
+
+### 💳 Stripe setup (optional)
+
+1. Get test keys at <https://dashboard.stripe.com/test/apikeys>
+2. Add to `.env`: `STRIPE_KEY=pk_test_...` and `STRIPE_SECRET=sk_test_...`
+3. Same publishable key goes in the storefront's `.env` as `VITE_STRIPE_PK`
+
+Without keys, card payments return a clear `503` and cash-on-delivery keeps working.
 
 ## 📁 Structure
 

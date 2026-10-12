@@ -4,7 +4,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 // Public
@@ -27,8 +29,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/cart', [CartController::class, 'clear']);
 
     Route::post('/checkout', [OrderController::class, 'checkout']);
+    Route::post('/checkout/payment-intent', [PaymentController::class, 'createIntent']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
+
+    Route::get('/wishlist', [WishlistController::class, 'index']);
+    Route::post('/wishlist', [WishlistController::class, 'toggle']);
+    Route::delete('/wishlist/{product}', [WishlistController::class, 'destroy']);
 
     // Admin only (also enforced in FormRequests)
     Route::middleware('admin')->group(function () {

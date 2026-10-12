@@ -11,6 +11,7 @@ class CartItemResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'product_id' => $this->product_id,
             'quantity' => $this->quantity,
             'line_total' => number_format($this->line_total, 2, '.', ''),
             'product' => new ProductResource($this->whenLoaded('product')),

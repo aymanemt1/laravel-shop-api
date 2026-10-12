@@ -16,6 +16,7 @@ class Order extends Model
     protected $fillable = [
         'user_id', 'order_number', 'subtotal', 'shipping', 'total', 'status',
         'shipping_name', 'shipping_phone', 'shipping_address', 'shipping_city',
+        'stripe_payment_intent_id',
     ];
 
     protected function casts(): array
