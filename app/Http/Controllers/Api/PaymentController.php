@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Stripe\Exception\ApiErrorException;
@@ -32,8 +33,8 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Your cart is empty.'], 422);
         }
 
-        $subtotal = $cart->sum(fn ($item) => $item->quantity * $item->product->price);
-        $amountCents = (int) round($subtotal * 100);
+        $totals = Order::totalsFromSubtotal($cart->sum(fn ($item) => $item->line_total));
+        $amountCents = $totals['total_cents'];
 
         Stripe::setApiKey($secret);
 
@@ -46,22 +47,24 @@ class PaymentController extends Controller
             ]);
         } catch (ApiErrorException $e) {
             return response()->json([
-                'message' => 'Could not start the payment: ' . $e->getMessage(),
+                'message' => 'Could not start the payment: '.$e->getMessage(),
             ], 422);
         }
 
         return response()->json([
             'client_secret' => $intent->client_secret,
             'payment_intent_id' => $intent->id,
-            'amount' => $subtotal,
+            'subtotal' => $totals['subtotal'],
+            'shipping' => $totals['shipping'],
+            'amount' => $totals['total'],
         ]);
     }
 
     /**
-     * Verify that a PaymentIntent succeeded. Returns the intent id on
-     * success, throws a validation-style exception otherwise.
+     * Verify that a PaymentIntent succeeded for this order's total.
+     * Returns the intent id on success, or aborts with 422/503 otherwise.
      */
-    public static function verifySucceeded(string $paymentIntentId): string
+    public static function verifySucceeded(string $paymentIntentId, int $expectedAmountCents): string
     {
         $secret = config('services.stripe.secret');
 
@@ -77,13 +80,19 @@ class PaymentController extends Controller
             $intent = PaymentIntent::retrieve($paymentIntentId);
         } catch (ApiErrorException $e) {
             abort(response()->json([
-                'message' => 'Payment verification failed: ' . $e->getMessage(),
+                'message' => 'Payment verification failed: '.$e->getMessage(),
             ], 422));
         }
 
         if ($intent->status !== 'succeeded') {
             abort(response()->json([
                 'message' => 'Payment has not completed yet.',
+            ], 422));
+        }
+
+        if ((int) $intent->amount !== $expectedAmountCents) {
+            abort(response()->json([
+                'message' => 'Payment amount does not match the order total.',
             ], 422));
         }
 

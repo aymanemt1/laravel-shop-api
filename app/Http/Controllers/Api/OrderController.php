@@ -33,12 +33,6 @@ class OrderController extends Controller
 
     public function checkout(CheckoutRequest $request): JsonResponse
     {
-        // Optional Stripe payment: verify the intent succeeded first
-        $paymentIntentId = null;
-        if ($request->filled('payment_intent_id')) {
-            $paymentIntentId = PaymentController::verifySucceeded($request->input('payment_intent_id'));
-        }
-
         $cartItems = $request->user()->cartItems()->with('product')->get();
 
         abort_if($cartItems->isEmpty(), 422, 'Your cart is empty.');
@@ -48,18 +42,32 @@ class OrderController extends Controller
             abort_if($item->product->stock < $item->quantity, 422, "Not enough stock for {$item->product->name}.");
         }
 
-        $order = DB::transaction(function () use ($request, $cartItems, $paymentIntentId) {
-            $subtotal = $cartItems->sum(fn (CartItem $item) => $item->line_total);
-            $shipping = $subtotal >= 500 ? 0 : 30;
+        $totals = Order::totalsFromSubtotal(
+            $cartItems->sum(fn (CartItem $item) => $item->line_total)
+        );
 
+        $paymentIntentId = null;
+        if ($request->filled('payment_intent_id')) {
+            $paymentIntentId = PaymentController::verifySucceeded(
+                $request->string('payment_intent_id')->toString(),
+                $totals['total_cents'],
+            );
+        }
+
+        $order = DB::transaction(function () use ($request, $cartItems, $paymentIntentId, $totals) {
             $order = Order::create([
                 'user_id' => $request->user()->id,
-                'subtotal' => $subtotal,
-                'shipping' => $shipping,
-                'total' => $subtotal + $shipping,
+                'subtotal' => $totals['subtotal'],
+                'shipping' => $totals['shipping'],
+                'total' => $totals['total'],
                 'status' => $paymentIntentId ? 'paid' : 'pending',
                 'stripe_payment_intent_id' => $paymentIntentId,
-                ...$request->validated(),
+                ...$request->safe()->only([
+                    'shipping_name',
+                    'shipping_phone',
+                    'shipping_address',
+                    'shipping_city',
+                ]),
             ]);
 
             foreach ($cartItems as $item) {
@@ -87,7 +95,7 @@ class OrderController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $request->validate([
-            'status' => ['required', 'in:' . implode(',', Order::STATUSES)],
+            'status' => ['required', 'in:'.implode(',', Order::STATUSES)],
         ]);
 
         $order->update(['status' => $request->status]);
