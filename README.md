@@ -1,3 +1,5 @@
+[![Tests](https://github.com/aymanemt1/laravel-shop-api/actions/workflows/tests.yml/badge.svg)](https://github.com/aymanemt1/laravel-shop-api/actions/workflows/tests.yml)
+
 # 🛒 Laravel Shop API
 
 A complete **RESTful e-commerce API** built with Laravel 12 — authentication, catalog, cart and orders, with role-based admin access and a full test suite.
